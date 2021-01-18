@@ -7,4 +7,5 @@ from pathlib import Path
 #     sys.path.append(outerpath)
 
 from .. import ue4
+from ..ue4.typings.stubs.unreal426 import unreal
 from ..ue4.unreal_global import UnrealRemoteResponse

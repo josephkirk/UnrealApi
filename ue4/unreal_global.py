@@ -172,17 +172,15 @@ class Unreal4:
         self.config = config
 
     # public
-    @classmethod
     @contextmanager
-    def open(cls, wait_before_close: int = 1) -> Iterator[Unreal4]:
-        instance = cls()
-        cls.close_all_editor()
+    def open(self, wait_before_close: int = 1) -> Iterator[Unreal4]:
+        self.close_all_editor()
         try:
-            instance.run_editor()
-            yield instance
+            self.run_editor()
+            yield self
         finally:
             time.sleep(wait_before_close)
-            cls.close_all_editor()
+            self.close_all_editor()
 
     ## getter
     @staticmethod

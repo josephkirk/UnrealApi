@@ -24,8 +24,8 @@ class TestUnreal4:
     def teardown_method(self, method):
         print("teardown_method   method:%s" % method.__name__)
 
-    def test_run_editor(self):
-        with ue4.Unreal4.open():
+    def test_run_editor(self, unreal_instance: ue4.Unreal4):
+        with unreal_instance.open():
             ue4_instances = [
                 p for p in psutil.process_iter() if re.match("UE4.+", p.name())
             ]
@@ -48,8 +48,8 @@ class TestUnreal4:
         # assert p.returncode, "Failed to exec python"
         assert temp_file.exists(), f"Failed to exec python command {command}"
 
-    def test_run_python_remote(self, datadir: Path):
-        with ue4.Unreal4.open() as unreal_instance:
+    def test_run_python_remote(self, unreal_instance: ue4.Unreal4, datadir: Path):
+        with unreal_instance.open():
             max_retry = 100
             retry = 0
             unreal_instance.run_editor()
