@@ -100,11 +100,455 @@ class SequenceTools:
 
     @classmethod
     def render_movie(
-        cls, capture_settings : unreal.MovieSceneCapture, on_finished_callback: Callable, asString: bool = return_as_string) -> Union[str, UnrealRemoteResponse]:
-        command = f"{cls.source_class}.render_movie({capture_settings}, {on_finished_callback.__name__})"
+        cls, capture_settings : unreal.MovieSceneCapture, on_finished_callback: str, asString: bool = return_as_string) -> Union[str, UnrealRemoteResponse]:
+        command = f"{cls.source_class}.render_movie({capture_settings}, {on_finished_callback})"
         if asString:
             return command
         return Unreal4.run_python_remote(command).result
+
+class EditorLevelLibrary:
+    r"""
+    Utility class to do most of the common functionalities in the World Editor.
+    The editor should not be in play in editor mode.
+    
+    **C++ Source:**
+    
+    - **Plugin**: EditorScriptingUtilities
+    - **Module**: EditorScriptingUtilities
+    - **File**: EditorLevelLibrary.h
+    
+    """
+    source_class = "unreal.EditorLevelLibrary"
+    return_as_string = False
+
+    @classmethod
+    def spawn_actor_from_object(cls, object_to_use, location, rotation=[0.000000, 0.000000, 0.000000], transient=False, asString=return_as_string):
+        r"""
+        X.spawn_actor_from_object(object_to_use, location, rotation=[0.000000, 0.000000, 0.000000], transient=False) -> Actor
+        Create an actor and place it in the world editor. The Actor can be created from a Factory, Archetype, Blueprint, Class or an Asset.
+        The actor will be created in the current level and will be selected.
+        
+        Args:
+            object_to_use (Object): Asset to attempt to use for an actor to place.
+            location (Vector): Location of the new actor.
+            rotation (Rotator): 
+            transient (bool): 
+        
+        Returns:
+            Actor: The created actor.
+        """
+        asString = any([asString, cls.return_as_string])
+        command = f"{cls.source_class}.spawn_actor_from_object({object_to_use}, {location}, {rotation}, {transient}"
+        if asString:
+            return command
+        return Unreal4.run_python_remote(command).result
+
+    @classmethod
+    def spawn_actor_from_class(cls, actor_class, location, rotation=[0.000000, 0.000000, 0.000000], transient=False, asString=return_as_string):
+        r"""
+        X.spawn_actor_from_class(actor_class, location, rotation=[0.000000, 0.000000, 0.000000], transient=False) -> Actor
+        Create an actor and place it in the world editor. Can be created from a Blueprint or a Class.
+        The actor will be created in the current level and will be selected.
+        
+        Args:
+            actor_class (type(Class)): Asset to attempt to use for an actor to place.
+            location (Vector): Location of the new actor.
+            rotation (Rotator): 
+            transient (bool): 
+        
+        Returns:
+            Actor: The created actor.
+        """
+        asString = any([asString, cls.return_as_string])
+        command = f"{cls.source_class}.spawn_actor_from_class({actor_class}, {location}, {rotation}, {transient}"
+        if asString:
+            return command
+        return Unreal4.run_python_remote(command).result
+    # @classmethod
+    # def set_selected_level_actors(cls, actors_to_select):
+    #     r"""
+    #     X.set_selected_level_actors(actors_to_select) -> None
+    #     Clear the current world editor selection and select the provided actors. Exclude actor that are pending kill, in PIE, PreviewEditor, ...
+        
+    #     Args:
+    #         actors_to_select (Array(Actor)): Actor that should be selected in the world editor.
+    #     """
+    #     return None
+    # @classmethod
+    # def set_level_viewport_camera_info(cls, camera_location, camera_rotation):
+    #     r"""
+    #     X.set_level_viewport_camera_info(camera_location, camera_rotation) -> None
+    #     Sets information about the camera position for the primary level editor viewport.
+        
+    #     Args:
+    #         camera_location (Vector): Location the camera will be moved to.
+    #         camera_rotation (Rotator): Rotation the camera will be set to.
+    #     """
+    #     return None
+    # @classmethod
+    # def set_current_level_by_name(cls, level_name):
+    #     r"""
+    #     X.set_current_level_by_name(level_name) -> bool
+    #     Set the current level used by the world editor.
+    #     If more than one level shares the same name, the first one encounter of that level name will be used.
+        
+    #     Args:
+    #         level_name (Name): The name of the Level the actor belongs to (same name as in the ContentBrowser).
+        
+    #     Returns:
+    #         bool: True if the operation succeeds.
+    #     """
+    #     return False
+    # @classmethod
+    # def set_actor_selection_state(cls, actor, should_be_selected):
+    #     r"""
+    #     X.set_actor_selection_state(actor, should_be_selected) -> None
+    #     Set the selection state for the selected actor
+        
+    #     Args:
+    #         actor (Actor): 
+    #         should_be_selected (bool):
+    #     """
+    #     return None
+    # @classmethod
+    # def select_nothing(cls):
+    #     r"""
+    #     X.select_nothing() -> None
+    #     Selects nothing in the editor (another way to clear the selection)
+    #     """
+    #     return None
+    # @classmethod
+    # def save_current_level(cls):
+    #     r"""
+    #     X.save_current_level() -> bool
+    #     Saves the specified Level. Must already be saved at lease once to have a valid path.
+        
+    #     Returns:
+    #         bool: True if the operation succeeds.
+    #     """
+    #     return False
+    # @classmethod
+    # def save_all_dirty_levels(cls):
+    #     r"""
+    #     X.save_all_dirty_levels() -> bool
+    #     Saves all Level currently loaded by the World Editor.
+        
+    #     Returns:
+    #         bool: True if the operation succeeds.
+    #     """
+    #     return False
+    # @classmethod
+    # def replace_mesh_components_meshes_on_actors(cls, actors, mesh_to_be_replaced, new_mesh):
+    #     r"""
+    #     X.replace_mesh_components_meshes_on_actors(actors, mesh_to_be_replaced, new_mesh) -> None
+    #     Find the references of the mesh MeshToBeReplaced on all the MeshComponents of all the Actors provided and replace it by NewMesh.
+        
+    #     Args:
+    #         actors (Array(Actor)): List of Actors to search from.
+    #         mesh_to_be_replaced (StaticMesh): Mesh we want to replace.
+    #         new_mesh (StaticMesh): Mesh to replace MeshToBeReplaced by.
+    #     """
+    #     return None
+    # @classmethod
+    # def replace_mesh_components_meshes(cls, mesh_components, mesh_to_be_replaced, new_mesh):
+    #     r"""
+    #     X.replace_mesh_components_meshes(mesh_components, mesh_to_be_replaced, new_mesh) -> None
+    #     Find the references of the mesh MeshToBeReplaced on all the MeshComponents provided and replace it by NewMesh.
+    #     The editor should not be in play in editor mode.
+        
+    #     Args:
+    #         mesh_components (Array(StaticMeshComponent)): List of MeshComponent to search from.
+    #         mesh_to_be_replaced (StaticMesh): Mesh we want to replace.
+    #         new_mesh (StaticMesh): Mesh to replace MeshToBeReplaced by.
+    #     """
+    #     return None
+    # @classmethod
+    # def replace_mesh_components_materials_on_actors(cls, actors, material_to_be_replaced, new_material):
+    #     r"""
+    #     X.replace_mesh_components_materials_on_actors(actors, material_to_be_replaced, new_material) -> None
+    #     Find the references of the material MaterialToReplaced on all the MeshComponents of all the Actors provided and replace it by NewMaterial.
+        
+    #     Args:
+    #         actors (Array(Actor)): List of Actors to search from.
+    #         material_to_be_replaced (MaterialInterface): Material we want to replace.
+    #         new_material (MaterialInterface): Material to replace MaterialToBeReplaced by.
+    #     """
+    #     return None
+    # @classmethod
+    # def replace_mesh_components_materials(cls, mesh_components, material_to_be_replaced, new_material):
+    #     r"""
+    #     X.replace_mesh_components_materials(mesh_components, material_to_be_replaced, new_material) -> None
+    #     Find the references of the material MaterialToReplaced on all the MeshComponents provided and replace it by NewMaterial.
+        
+    #     Args:
+    #         mesh_components (Array(MeshComponent)): List of MeshComponent to search from.
+    #         material_to_be_replaced (MaterialInterface): Material we want to replace.
+    #         new_material (MaterialInterface): Material to replace MaterialToBeReplaced by.
+    #     """
+    #     return None
+    # @classmethod
+    # def pilot_level_actor(cls, actor_to_pilot):
+    #     r"""
+    #     X.pilot_level_actor(actor_to_pilot) -> None
+    #     Pilot Level Actor
+        
+    #     Args:
+    #         actor_to_pilot (Actor):
+    #     """
+    #     return None
+    # @classmethod
+    # def new_level_from_template(cls, asset_path, template_asset_path):
+    #     r"""
+    #     X.new_level_from_template(asset_path, template_asset_path) -> bool
+    #     Close the current Persistent Level (without saving it). Create a new Level base on another level and save it. Load the new created level.
+        
+    #     Args:
+    #         asset_path (str): Asset Path of where the level will be saved. ie. /Game/MyFolder/MyAsset
+    #         template_asset_path (str): Level to be used as Template. ie. /Game/MyFolder/MyAsset
+        
+    #     Returns:
+    #         bool: True if the operation succeeds.
+    #     """
+    #     return False
+    # @classmethod
+    # def new_level(cls, asset_path):
+    #     r"""
+    #     X.new_level(asset_path) -> bool
+    #     Close the current Persistent Level (without saving it). Create a new blank Level and save it. Load the new created level.
+        
+    #     Args:
+    #         asset_path (str): Asset Path of where the level will be saved. ie. /Game/MyFolder/MyAsset
+        
+    #     Returns:
+    #         bool: True if the operation succeeds.
+    #     """
+    #     return False
+    # @classmethod
+    # def merge_static_mesh_actors(cls, actors_to_merge, merge_options):
+    #     r"""
+    #     X.merge_static_mesh_actors(actors_to_merge, merge_options) -> StaticMeshActor or None
+    #     Merge the meshes into a unique mesh with the provided StaticMeshActors. There are multiple options on how to merge the meshes and their materials.
+    #     The ActorsToMerge need to be in the same Level.
+    #     This may have a high impact on performance depending of the MeshMergingSettings options.
+        
+    #     Args:
+    #         actors_to_merge (Array(StaticMeshActor)): List of Actors to merge.
+    #         merge_options (EditorScriptingMergeStaticMeshActorsOptions): Options on how to merge the actors.
+        
+    #     Returns:
+    #         StaticMeshActor or None: if the operation is successful.
+        
+    #         out_merged_actor (StaticMeshActor): The new created actor, if requested.
+    #     """
+    #     return None
+    # @classmethod
+    # def load_level(cls, asset_path):
+    #     r"""
+    #     X.load_level(asset_path) -> bool
+    #     Close the current Persistent Level (without saving it). Loads the specified level.
+        
+    #     Args:
+    #         asset_path (str): Asset Path of the level to be loaded. ie. /Game/MyFolder/MyAsset
+        
+    #     Returns:
+    #         bool: True if the operation succeeds.
+    #     """
+    #     return False
+    # @classmethod
+    # def join_static_mesh_actors(cls, actors_to_join, join_options):
+    #     r"""
+    #     X.join_static_mesh_actors(actors_to_join, join_options) -> Actor
+    #     Create a new Actor in the level that contains a duplicate of all the Actors Static Meshes Component.
+    #     The ActorsToJoin need to be in the same Level.
+    #     This will have a low impact on performance but may help the edition by grouping the meshes under a single Actor.
+        
+    #     Args:
+    #         actors_to_join (Array(StaticMeshActor)): List of Actors to join.
+    #         join_options (EditorScriptingJoinStaticMeshActorsOptions): Options on how to join the actors.
+        
+    #     Returns:
+    #         Actor: The new created actor.
+    #     """
+    #     return None
+    # @classmethod
+    # def get_selected_level_actors(cls):
+    #     r"""
+    #     X.get_selected_level_actors() -> Array(Actor)
+    #     Find all loaded Actors that are selected in the world editor. Exclude actor that are pending kill, in PIE, PreviewEditor, ...
+        
+    #     Returns:
+    #         Array(Actor): List of found Actors
+    #     """
+    #     return Array.cast(Actor, [])
+    # @classmethod
+    # def get_pie_worlds(cls, include_dedicated_server):
+    #     r"""
+    #     X.get_pie_worlds(include_dedicated_server) -> Array(World)
+    #     Get PIEWorlds
+        
+    #     Args:
+    #         include_dedicated_server (bool): 
+        
+    #     Returns:
+    #         Array(World):
+    #     """
+    #     return Array.cast(World, [])
+    # @classmethod
+    # def get_level_viewport_camera_info(cls):
+    #     r"""
+    #     X.get_level_viewport_camera_info() -> (camera_location=Vector, camera_rotation=Rotator) or None
+    #     Gets information about the camera position for the primary level editor viewport.  In non-editor builds, these will be zeroed
+        
+    #     Returns:
+    #         tuple or None: Whether or not we were able to get a camera for a level editing viewport
+        
+    #         camera_location (Vector): (out) Current location of the level editing viewport camera, or zero if none found
+        
+    #         camera_rotation (Rotator): (out) Current rotation of the level editing viewport camera, or zero if none found
+    #     """
+    #     return (Vector(), Rotator())
+    # @classmethod
+    # def get_game_world(cls):
+    #     r"""
+    #     X.get_game_world() -> World
+    #     Get Game World
+        
+    #     Returns:
+    #         World:
+    #     """
+    #     return None
+    # @classmethod
+    # def get_editor_world(cls):
+    #     r"""
+    #     X.get_editor_world() -> World
+    #     Find the World in the world editor. It can then be used as WorldContext by other libraries like GameplayStatics.
+        
+    #     Returns:
+    #         World: The World used by the world editor.
+    #     """
+    #     return None
+    # @classmethod
+    # def get_all_level_actors_components(cls):
+    #     r"""
+    #     X.get_all_level_actors_components() -> Array(ActorComponent)
+    #     Find all loaded ActorComponent own by an actor in the world editor. Exclude actor that are pending kill, in PIE, PreviewEditor, ...
+        
+    #     Returns:
+    #         Array(ActorComponent): List of found ActorComponent
+    #     """
+    #     return Array.cast(ActorComponent, [])
+    # @classmethod
+    # def get_all_level_actors(cls):
+    #     r"""
+    #     X.get_all_level_actors() -> Array(Actor)
+    #     Find all loaded Actors in the world editor. Exclude actor that are pending kill, in PIE, PreviewEditor, ...
+        
+    #     Returns:
+    #         Array(Actor): List of found Actors
+    #     """
+    #     return Array.cast(Actor, [])
+    # @classmethod
+    # def get_actor_reference(cls, path_to_actor):
+    #     r"""
+    #     X.get_actor_reference(path_to_actor) -> Actor
+    #     Attempts to find the actor specified by PathToActor in the current editor world
+        
+    #     Args:
+    #         path_to_actor (str): The path to the actor (e.g. PersistentLevel.PlayerStart)
+        
+    #     Returns:
+    #         Actor: A reference to the actor, or none if it wasn't found
+    #     """
+    #     return None
+    # @classmethod
+    # def eject_pilot_level_actor(cls):
+    #     r"""
+    #     X.eject_pilot_level_actor() -> None
+    #     Eject Pilot Level Actor
+    #     """
+    #     return None
+    # @classmethod
+    # def editor_set_game_view(cls, game_view):
+    #     r"""
+    #     X.editor_set_game_view(game_view) -> None
+    #     Editor Set Game View
+        
+    #     Args:
+    #         game_view (bool):
+    #     """
+    #     return None
+    # @classmethod
+    # def editor_play_simulate(cls):
+    #     r"""
+    #     X.editor_play_simulate() -> None
+    #     Editor Play Simulate
+    #     """
+    #     return None
+    # @classmethod
+    # def editor_invalidate_viewports(cls):
+    #     r"""
+    #     X.editor_invalidate_viewports() -> None
+    #     Editor Invalidate Viewports
+    #     """
+    #     return None
+    # @classmethod
+    # def editor_end_play(cls):
+    #     r"""
+    #     X.editor_end_play() -> None
+    #     Editor End Play
+    #     """
+    #     return None
+    # @classmethod
+    # def destroy_actor(cls, actor_to_destroy):
+    #     r"""
+    #     X.destroy_actor(actor_to_destroy) -> bool
+    #     Destroy the actor from the world editor. Notify the Editor that the actor got destroyed.
+        
+    #     Args:
+    #         actor_to_destroy (Actor): 
+        
+    #     Returns:
+    #         bool: True if the operation succeeds.
+    #     """
+    #     return False
+    # @classmethod
+    # def create_proxy_mesh_actor(cls, actors_to_merge, merge_options):
+    #     r"""
+    #     X.create_proxy_mesh_actor(actors_to_merge, merge_options) -> StaticMeshActor or None
+    #     Build a proxy mesh actor that can replace a set of mesh actors.
+        
+    #     Args:
+    #         actors_to_merge (Array(StaticMeshActor)): List of actors to build a proxy for.
+    #         merge_options (EditorScriptingCreateProxyMeshActorOptions): 
+        
+    #     Returns:
+    #         StaticMeshActor or None: Success of the proxy creation
+        
+    #         out_merged_actor (StaticMeshActor): generated actor if requested
+    #     """
+    #     return None
+    # @classmethod
+    # def convert_actors(cls, actors, actor_class, static_mesh_package_path):
+    #     r"""
+    #     X.convert_actors(actors, actor_class, static_mesh_package_path) -> Array(Actor)
+    #     Replace in the level all Actors provided with a new actor of type ActorClass. Destroy all Actors provided.
+        
+    #     Args:
+    #         actors (Array(Actor)): List of Actors to replace.
+    #         actor_class (type(Class)): Class/Blueprint of the new actor that will be spawn.
+    #         static_mesh_package_path (str): If the list contains Brushes and it is requested to change them to StaticMesh, StaticMeshPackagePath is the package path to where the StaticMesh will be created. ie. /Game/MyFolder/
+        
+    #     Returns:
+    #         Array(Actor):
+    #     """
+    #     return Array.cast(Actor, [])
+    # @classmethod
+    # def clear_actor_selection_set(cls):
+    #     r"""
+    #     X.clear_actor_selection_set() -> None
+    #     Remove all actors from the selection set
+    #     """
+    #     return None
 
 """
 AssetTools = unreal.AssetToolsHelpers.get_asset_tools()
@@ -279,43 +723,6 @@ AutomationLibrary = unreal.AutomationLibrary
     add_expected_log_error(cls, expected_pattern_string, occurrences=1, exact_match=False)
 """
 
-"""
-LevelLibrary = unreal.EditorLevelLibrary
-    spawn_actor_from_object(object_to_use, location, rotation=[0.000000, 0.000000, 0.000000]) -> Actor
-    spawn_actor_from_class(actor_class, location, rotation=[0.000000, 0.000000, 0.000000]) -> Actor
-    set_selected_level_actors(actors_to_select) -> None
-    set_level_viewport_camera_info(camera_location, camera_rotation) -> None
-    set_current_level_by_name(level_name) -> bool
-    set_actor_selection_state(actor, should_be_selected) -> None
-    select_nothing() -> None
-    save_current_level() -> bool
-    save_all_dirty_levels() -> bool
-    replace_mesh_components_meshes_on_actors(actors, mesh_to_be_replaced, new_mesh) -> None
-    replace_mesh_components_meshes(mesh_components, mesh_to_be_replaced, new_mesh) -> None
-    replace_mesh_components_materials_on_actors(actors, material_to_be_replaced, new_material) -> None
-    replace_mesh_components_materials(mesh_components, material_to_be_replaced, new_material) -> None
-    pilot_level_actor(actor_to_pilot) -> None
-    new_level_from_template(asset_path, template_asset_path) -> bool
-    new_level(asset_path) -> bool
-    merge_static_mesh_actors(actors_to_merge, merge_options) -> StaticMeshActor or None
-    load_level(asset_path) -> bool
-    join_static_mesh_actors(actors_to_join, join_options) -> Actor
-    get_selected_level_actors() -> Array(Actor)
-    get_level_viewport_camera_info() -> (camera_location=Vector, camera_rotation=Rotator) or None
-    get_game_world() -> World
-    get_editor_world() -> World
-    get_all_level_actors_components() -> Array(ActorComponent)
-    get_all_level_actors() -> Array(Actor)
-    get_actor_reference(path_to_actor) -> Actor
-    eject_pilot_level_actor() -> None
-    editor_set_game_view(game_view) -> None
-    editor_play_simulate() -> None
-    editor_invalidate_viewports() -> None
-    destroy_actor(actor_to_destroy) -> bool
-    create_proxy_mesh_actor(actors_to_merge, merge_options) -> StaticMeshActor or None
-    convert_actors(actors, actor_class, static_mesh_package_path) -> Array(Actor)
-    clear_actor_selection_set() -> None
-"""
 
 """
 SequenceBindingLibrary = unreal.MovieSceneBindingExtensions

@@ -10,6 +10,7 @@ from pathlib import Path
 from subprocess import CompletedProcess
 from typing import cast
 import pytest_datadir
+from pytest import mark
 from .setup import ue4, UnrealRemoteResponse
 
 class TestUnreal4:
@@ -74,6 +75,17 @@ class TestUnreal4:
             time.sleep(.1)
             assert p.success and ("StaticMeshActor" in p.output[0].output), "Failed to run remote python command"
 
+    @mark.notwritten
+    def test_render_sequence(self, unreal_instance: ue4.Unreal4, datadir: Path):
+        pass
+
+    @mark.notwritten
+    def test_check_for_asset(self, unreal_instance: ue4.Unreal4, datadir: Path):
+        pass
+
+    @mark.notwritten
+    def test_import_asset(self, unreal_instance: ue4.Unreal4, datadir: Path):
+        pass
 
 # from CosmicShake import Factory
 
