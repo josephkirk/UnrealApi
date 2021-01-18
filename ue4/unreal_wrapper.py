@@ -1,5 +1,4 @@
-from thirdpartylibs.unreal_api3.ue4.unreal_global import UnrealResponse
-from .unreal_global import Unreal4
+from .unreal_global import Unreal4, UnrealRemoteResponse
 from typing import Callable, Sequence, Tuple, Union
 from .typings.stubs.unreal426 import unreal
 # try:
@@ -33,7 +32,7 @@ class EditorUtilLibrary:
     @classmethod
     def rename_asset(
         cls, asset: str, new_name: str, asString: bool = return_as_string
-    ) -> Union[str, UnrealResponse]:
+    ) -> Union[str, UnrealRemoteResponse]:
         command = f"{cls.source_class}.rename_asset( {asset}, {new_name})"
         if asString:
             return command
@@ -42,7 +41,7 @@ class EditorUtilLibrary:
     @classmethod
     def get_selection_set(
         cls, asString: bool = return_as_string
-    ) -> Union[str, UnrealResponse]:
+    ) -> Union[str, UnrealRemoteResponse]:
         command = f"{cls.source_class}.get_selection_set()"
         if asString:
             return command
@@ -51,7 +50,7 @@ class EditorUtilLibrary:
     @classmethod
     def get_selected_blueprint_classes(
         cls, asString: bool = return_as_string
-    ) -> Union[str, UnrealResponse]:
+    ) -> Union[str, UnrealRemoteResponse]:
         command = f"{cls.source_class}.get_selected_blueprint_classes()"
         if asString:
             return command
@@ -60,7 +59,7 @@ class EditorUtilLibrary:
     @classmethod
     def get_selected_assets(
         cls, asString: bool = return_as_string
-    ) -> Union[str, UnrealResponse]:
+    ) -> Union[str, UnrealRemoteResponse]:
         command = f"{cls.source_class}.get_selected_assets()"
         if asString:
             return command
@@ -69,7 +68,7 @@ class EditorUtilLibrary:
     @classmethod
     def get_selected_asset_data(
         cls, asString: bool = return_as_string
-    ) -> Union[str, UnrealResponse]:
+    ) -> Union[str, UnrealRemoteResponse]:
         command = f"{cls.source_class}.get_selected_asset_data()"
         if asString:
             return command
@@ -78,7 +77,7 @@ class EditorUtilLibrary:
     @classmethod
     def get_actor_reference(
         cls, path_to_actor: str, asString: bool = return_as_string
-    ) -> Union[str, UnrealResponse]:
+    ) -> Union[str, UnrealRemoteResponse]:
         command = f"{cls.source_class}.get_actor_reference({path_to_actor})"
         if asString:
             return command
@@ -101,7 +100,7 @@ class SequenceTools:
 
     @classmethod
     def render_movie(
-        cls, capture_settings : unreal.MovieSceneCapture, on_finished_callback: Callable, asString: bool = return_as_string) -> Union[str, UnrealResponse]:
+        cls, capture_settings : unreal.MovieSceneCapture, on_finished_callback: Callable, asString: bool = return_as_string) -> Union[str, UnrealRemoteResponse]:
         command = f"{cls.source_class}.render_movie({capture_settings}, {on_finished_callback.__name__})"
         if asString:
             return command

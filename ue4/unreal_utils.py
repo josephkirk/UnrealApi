@@ -2,7 +2,7 @@ import time
 from .unreal_global import (
     RemoteExecution,
     Unreal4,
-    UnrealResponse,
+    UnrealRemoteResponse,
     AssetImportData,
     AssetImportProperties,
 )

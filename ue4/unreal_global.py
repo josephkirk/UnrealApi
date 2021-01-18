@@ -9,9 +9,9 @@ import sys
 import subprocess
 from subprocess import CompletedProcess, Popen
 import time
-from typing import Any, Union, Sequence, Callable, cast, Optional
+from typing import Any, Union, Sequence, Callable, cast, Optional, Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, InitVar
 from pathlib import Path
 from yaml import CLoader, load, dump, CDumper
 from box import Box
@@ -19,7 +19,7 @@ from enum import Enum, auto
 
 from .remote_execution import RemoteExecution, RemoteExecutionConfig
 from importlib_resources import files
-from .utils import close_all_app, is_any_running
+from .utils import close_all_app, is_any_running, logging
 
 # Error Class
 class Unreal4ConfigError(ValueError):
@@ -27,17 +27,49 @@ class Unreal4ConfigError(ValueError):
 
 
 # Enum
-
-
 # Struct
+global_remote = RemoteExecution()
+global_remote.start()
+
+
+class RenderOutputFormat(Enum):
+    JPG = auto()
+    BMP = auto()
+    PNG = auto()
+    Video = auto()
 
 
 @dataclass
-class UnrealResponse:
+class UnrealRemoteOutput:
+    type: str = field(default_factory=str)
+    output: str = field(default_factory=str)
+
+
+UnrealRemoteOutputs = list[UnrealRemoteOutput]
+
+
+@dataclass
+class UnrealRemoteResponse:
     """Unreal Response from remote request"""
 
     success: str = field(default_factory=str)
     result: str = field(default_factory=str)
+    command: str = field(default_factory=str)
+    output: InitVar[UnrealRemoteOutputs] = []
+
+    def __post_init__(self, output):
+        self.output = [UnrealRemoteOutput(**o) for o in output]
+
+
+@dataclass
+class UnrealRemoteInfo:
+    user: str
+    machine: str
+    engine_version: str
+    engine_root: str
+    project_root: str
+    project_name: str
+    node_id: str
 
 
 @dataclass
@@ -72,8 +104,8 @@ class Unreal4Config:
     config_path = os.getenv("UE4_REMOTE_CONFIG", "")
 
     def __init__(self, unreal_path: str, project_path: str):
-        self.ue4editor = str(Path(unreal_path).resolve())
-        self.project_file = str(Path(project_path).resolve())
+        self.ue4editor = str(Path(unreal_path).resolve().as_posix())
+        self.project_file = str(Path(project_path).resolve().as_posix())
         if not self.validate_editor(unreal_path):
             raise Unreal4ConfigError(
                 f"{unreal_path} is not valid. Unreal path must point to UE4Editor.exe"
@@ -87,7 +119,7 @@ class Unreal4Config:
     def default(cls):
         return cls(
             unreal_path=r"C:\Program Files\Epic Games\UE_4.26\Engine\Binaries\Win64\UE4Editor.exe",
-            project_path=files("..data.TemplateProject").joinpath(
+            project_path=files("unreal_api3.data.TemplateProject").joinpath(
                 "PythonProject.uproject"
             ),
         )
@@ -95,7 +127,10 @@ class Unreal4Config:
     @staticmethod
     def validate_editor(unreal_path: str) -> bool:
         _unreal_path = Path(unreal_path)
-        return _unreal_path.is_file() and _unreal_path.name == "UE4Editor.exe"
+        return _unreal_path.is_file() and any(
+            _unreal_path.name == editor_name
+            for editor_name in ["UE4Editor.exe", "UE4Editor-Cmd.exe"]
+        )
 
     @staticmethod
     def validate_project(project_path: str) -> bool:
@@ -125,7 +160,6 @@ class Unreal4:
     # Global Remote Exec Instance
 
     ## properties
-    global_remote = RemoteExecution()
 
     ## class
     class PythonExecMode(Enum):
@@ -138,8 +172,18 @@ class Unreal4:
         self.config = config
 
     # public
-    
-    
+    @classmethod
+    @contextmanager
+    def open(cls, wait_before_close: int = 1) -> Iterator[Unreal4]:
+        instance = cls()
+        cls.close_all_editor()
+        try:
+            instance.run_editor()
+            yield instance
+        finally:
+            time.sleep(wait_before_close)
+            cls.close_all_editor()
+
     ## getter
     @staticmethod
     def get_unreal_remote(
@@ -148,11 +192,10 @@ class Unreal4:
         return remote_exec
 
     @staticmethod
-    def get_running_unreal(
+    def get_running_unreal_remote(
         remote_exec: RemoteExecution = global_remote,
-    ) -> list[RemoteExecution]:
-        return remote_exec.remote_nodes
-
+    ) -> list[UnrealRemoteInfo]:
+        return [UnrealRemoteInfo(**n) for n in remote_exec.remote_nodes]
 
     @staticmethod
     def is_any_unreal_running() -> bool:
@@ -164,33 +207,86 @@ class Unreal4:
 
     def run_editor(
         self,
-        argv: list[str] = ["-log"],
+        argv: list[str] = [],
+        log: Union[bool, str] = False,
+        consolevariables: list[str] = [],
         run_process_callable: Callable = Popen,
         run_process_argv: Sequence[str] = [],
         run_process_kws: dict[str, Any] = {},
+        custom_editor_path: str = "",
+        custom_project_path: str = "",
+        as_cmd: bool = False
     ) -> Union[Popen, CompletedProcess, Any]:
+        argv.append('-ExecCmds="{}"'.format(";".join(consolevariables)))
+        if log:
+            try:
+                log_file = Path(cast(str, log))
+                if log_file.exists():
+                    argv.append(f"-log")
+                    argv.append(f'LOG="{str(log_file.as_posix())}"')
+            except TypeError:
+                argv.append(f"-log")
+        editor_path = (
+            custom_editor_path
+            if Unreal4Config.validate_editor(custom_editor_path)
+            else str(self.config.ue4editor)
+        )
+        project_path = (
+            custom_project_path
+            if Unreal4Config.validate_project(custom_project_path)
+            else str(self.config.project_file)
+        )
+        if as_cmd:
+            editor_path = editor_path.replace("UE4Editor", "UE4Editor-Cmd")
+        logging.info(f"Exec {editor_path} {project_path} {argv}")
         return run_process_callable(
-            [str(self.config.ue4editor), str(self.config.project_file), *argv],
+            [editor_path, project_path, *argv],
             *run_process_argv,
             **run_process_kws,
         )
 
-    def run_cmd(
+    def run_render(
         self,
-        argv: list[str] = ["-log"],
-        run_process_callable: Callable = Popen,
-        run_process_argv: Sequence[str] = [],
-        run_process_kws: dict[str, Any] = {},
-    ) -> Union[Popen, CompletedProcess, Any]:
-        return run_process_callable(
-            [
-                str(self.config.ue4editor).replace("UE4Editor", "UE4Editor-Cmd"),
-                str(self.config.project_file),
-                *argv,
-            ],
-            *run_process_argv,
-            **run_process_kws,
-        )
+        map_path: str,
+        sequence_path: str,
+        output_folder: str = "render",
+        output_name: str = "Render.{frame}",
+        output_format: RenderOutputFormat = RenderOutputFormat.PNG,
+        start_frame: int = 0,
+        end_frame: int = 0,
+        res_x: int = 1920,
+        rex_y: int = 1080,
+        frame_rate: int = 30,
+        quality: int = 100,
+        warmup_frames: int = 30,
+        delay_frames: int = 30,
+        preview: bool = False,
+    ):
+        cmds = [
+            map_path,
+            "-game",
+            '-MovieSceneCaptureType="/Script/MovieSceneCapture.AutomatedLevelSequenceCapture"',
+            f'-LevelSequence="{sequence_path}"',
+            "-noloadingscreen ",
+            f"-ResX={res_x}",
+            f"-ResY={rex_y}",
+            "-ForceRes",
+            "-NoVSync" if preview else "-VSync",
+            f"-MovieFrameRate={frame_rate}",
+            "-NoTextureStreaming",
+            "-MovieCinematicMode=Yes",
+            f"-MovieWarmUpFrames={warmup_frames}",
+            f"-MovieDelayBeforeWarmUp={delay_frames}",
+            f"-MovieQuality={quality}",
+            f'-MovieFolder="{output_folder}"',
+            f'-MovieName="{output_name}"',
+            f'-MovieFormat="{output_format.name}"',
+            "-NoScreenMessage",
+        ]
+        if start_frame:
+            cmds.append(f"-MovieStartFrame={start_frame}")
+        if end_frame:
+            cmds.append(f"-MovieEndFrame={end_frame}")
 
     def run_python(
         self,
@@ -198,31 +294,28 @@ class Unreal4:
         exec_mode: PythonExecMode = PythonExecMode.CMDLET,
         *args,
         **kws,
-    ) -> Union[CompletedProcess, UnrealResponse]:
+    ) -> Union[CompletedProcess, UnrealRemoteResponse]:
         return Unreal4.PythonExecModes[exec_mode](python_script, *args, **kws)
 
     def run_python_cmdlet(
         self,
         python_file: str,
         fully_initialize: bool = False,
-        log: bool = False,
-        log_file: str = "",
+        log: Union[bool, str] = False,
         timeout: int = None,
     ) -> CompletedProcess:
-        cmd = ["-run=pythonscript", f'-script={python_file}']
-        log_cmd = "-log"
-        if (log_filepath := Path(log_file)).exists() and log_file:
-            log_cmd += f"={log_filepath.as_posix()}"
+        use_cmd = True
+        cmd = ["-run=pythonscript", f"-script={python_file}"]
 
         if fully_initialize:
+            use_cmd = False
             cmd = [f'-ExecutePythonScript="{python_file}"']
-        if log:
-            cmd.append(log_cmd)
-                
+
         return cast(
             CompletedProcess,
-            self.run_cmd(
+            self.run_editor(
                 cmd,
+                log=log,
                 run_process_callable=subprocess.run,
                 run_process_kws=dict(
                     encoding="utf-8",
@@ -231,6 +324,7 @@ class Unreal4:
                     check=False,
                     capture_output=False,
                 ),
+                as_cmd=use_cmd
             ),
         )
 
@@ -240,7 +334,7 @@ class Unreal4:
         remote_exec: RemoteExecution = global_remote,
         failed_connection_attempts: int = 0,
         max_failed_connection_attempts: int = 50,
-    ) -> UnrealResponse:
+    ) -> UnrealRemoteResponse:
         """
         This function finds the open unreal editor with remote connection enabled, and sends it python commands.
 
@@ -259,7 +353,7 @@ class Unreal4:
             # if a connection is made
             if remote_exec.has_command_connection():
                 # run the import commands and save the response in the global unreal_response variable
-                return UnrealResponse(
+                return UnrealRemoteResponse(
                     **remote_exec.run_command(commands, unattended=False)
                 )
 
@@ -274,7 +368,7 @@ class Unreal4:
         # shutdown the connection
         finally:
             remote_exec.stop()
-        return UnrealResponse("", "Failed To Connect To Unreal")
+        return UnrealRemoteResponse("", "Failed To Connect To Unreal")
 
     def import_asset(
         self,
@@ -354,53 +448,45 @@ class Unreal4:
             p = self.run_python_cmdlet(import_command)
             return not bool(p.returncode)
 
-    @staticmethod
     def asset_exists_remote(
-        game_path: str, remote_exec: RemoteExecution = global_remote
+        self, asset_path: str, as_remote: bool=False, remote_exec: RemoteExecution = global_remote
     ) -> bool:
         """
         This function checks to see if an asset exist in unreal.
 
-        :param str game_path: The game path to the unreal asset.
+        :param str asset_path: The game path to the unreal asset.
         :return bool: Whether or not the asset exists.
         """
         # start a connection to the engine that lets you send python strings
         # send over the python code as a string
+        command = "\n".join(
+            [
+                f'game_asset = unreal.load_asset(r"{asset_path}")',
+                f"if game_asset:",
+                f"\tpass",
+                f"else:",
+                f'\traise RuntimeError("Asset not found")',
+            ]
+        )
         unreal_response = Unreal4.run_python_remote(
-            "\n".join(
-                [
-                    f'game_asset = unreal.load_asset(r"{game_path}")',
-                    f"if game_asset:",
-                    f"\tpass",
-                    f"else:",
-                    f'\traise RuntimeError("Asset not found")',
-                ]
-            ),
+            command,
             remote_exec,
         )
+        if as_remote:
+            unreal_response = Unreal4.run_python_remote(
+                command,
+                remote_exec,
+            )
 
-        return bool(unreal_response.success)
-
-    @staticmethod
-    def delete_asset_remote(
-        game_path: str, remote_exec: RemoteExecution = global_remote
-    ) -> bool:
-        """
-        This function deletes an asset in unreal.
-
-        :param str game_path: The game path to the unreal asset.
-        """
-        # start a connection to the engine that lets you send python strings
-        # send over the python code as a string
-        unreal_response = Unreal4.run_python_remote(
-            "\n".join(
-                [
-                    f'unreal.EditorAssetLibrary.delete_asset(r"{game_path}")',
-                ]
-            ),
-            remote_exec,
-        )
-
+            # if there is an error report it
+            if unreal_response:
+                if unreal_response.result != "None":
+                    print(unreal_response.result)
+                    return False
+            return True
+        else:
+            p = self.run_python_cmdlet(command)
+            return not bool(p.returncode)
         return bool(unreal_response.success)
 
     PythonExecModes = {

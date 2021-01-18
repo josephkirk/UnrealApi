@@ -1,5 +1,8 @@
 import psutil
 import re
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 def close_all_app(app_name: str):
     for p in psutil.process_iter():
