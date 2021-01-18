@@ -1,0 +1,3 @@
+Unreal:
+  unreal_path: "D:/Epic/UE_4.26/Engine/Binaries/Win64/UE4Editor.exe"
+  project_path: "tests/data/TemplateProject/PythonProject.uproject"

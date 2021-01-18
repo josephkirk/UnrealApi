@@ -101,16 +101,16 @@ class AssetImportProperties:
 
 class Unreal4Config:
     remote_config = RemoteExecutionConfig()
-    config_path = os.getenv("UE4_REMOTE_CONFIG", "")
+    config_path = os.getenv("UE4_REMOTE_CONFIG", "") or "Unreal4Config.yml"
 
     def __init__(self, unreal_path: str, project_path: str):
         self.ue4editor = str(Path(unreal_path).resolve().as_posix())
         self.project_file = str(Path(project_path).resolve().as_posix())
-        if not self.validate_editor(unreal_path):
+        if not self.validate_editor(self.ue4editor):
             raise Unreal4ConfigError(
                 f"{unreal_path} is not valid. Unreal path must point to UE4Editor.exe"
             )
-        if not self.validate_project(project_path):
+        if not self.validate_project(self.project_file ):
             raise Unreal4ConfigError(
                 f"{project_path} is not valid. Project file must be a uproject file."
             )
@@ -118,10 +118,8 @@ class Unreal4Config:
     @classmethod
     def default(cls):
         return cls(
-            unreal_path=r"C:\Program Files\Epic Games\UE_4.26\Engine\Binaries\Win64\UE4Editor.exe",
-            project_path=files("unreal_api3.data.TemplateProject").joinpath(
-                "PythonProject.uproject"
-            ),
+            unreal_path=os.getenv("UE4Editor", ""),
+            project_path=os.getenv("UE4Project", "")
         )
 
     @staticmethod
@@ -168,8 +166,14 @@ class Unreal4:
 
     # private
 
-    def __init__(self, config: Unreal4Config = Unreal4Config.get_config()):
-        self.config = config
+    def __init__(self, config: Unreal4Config = None):
+        self._config = config
+
+    @property
+    def config(self):
+        if not self._config:
+            self._config = Unreal4Config.get_config()
+        return self._config
 
     # public
     @contextmanager
