@@ -1,7 +1,6 @@
 import os
 import glob
 from subprocess import Popen
-from enum import Enum
 import json
 class RenderOutputFormat(object):
     JPG = "jpg"
@@ -13,41 +12,81 @@ class ImportData(object):
     pass
 
 class StaticMeshImportData(ImportData):
-    bRemoveDegenerates = True
-    bBuildAdjacencyBuffer = True
-    bBuildReversedIndexBuffer = False
-    bGenerateLightmapUVs = False
-    bOneConvexHullPerUCX = True
-    bAutoGenerateCollision = False
-    bCombineMeshes = False
+    def __init__(self):
+        self.bRemoveDegenerates = True
+        self.bBuildAdjacencyBuffer = True
+        self.bBuildReversedIndexBuffer = False
+        self.bGenerateLightmapUVs = False
+        self.bOneConvexHullPerUCX = True
+        self.bAutoGenerateCollision = False
+        self.bCombineMeshes = False
 
 class SkeletalMeshImportData(ImportData):
-    TargetSkeleton = ""
-    bUpdateSkeletonReferencePose = True
-    bUseT0AsRefPose = True
-    bPreserveSmoothingGroups = True
-    bImportMeshesInBoneHierarchy = False
-    bImportMorphTargets = True
-    bKeepOverlappingVertices = True
+    def __init__(self):
+        self.TargetSkeleton = ""
+        self.bUpdateSkeletonReferencePose = True
+        self.bUseT0AsRefPose = True
+        self.bPreserveSmoothingGroups = True
+        self.bImportMeshesInBoneHierarchy = False
+        self.bImportMorphTargets = True
+        self.bKeepOverlappingVertices = True
     
 
 class AnimSequenceImportData(ImportData):
-    TargetSkeleton = ""
-    bImportCustomAttribute = True
-    bDeleteExistingCustomAttributeCurves = True
-    bDeleteExistingNonCurveCustomAttributes = True
-    bImportBoneTracks = True
-    bSetMaterialDriveParameterOnCustomAttribute = True
-    bRemoveRedundantKeys = False
-    bDeleteExistingMorphTargetCurves = False
-    bDoNotImportCurveWithZero = True
-    bPreserveLocalTransform = True
+    def __init__(self):
+        self.TargetSkeleton = ""
+        self.bImportCustomAttribute = True
+        self.bDeleteExistingCustomAttributeCurves = True
+        self.bDeleteExistingNonCurveCustomAttributes = True
+        self.bImportBoneTracks = True
+        self.bSetMaterialDriveParameterOnCustomAttribute = True
+        self.bRemoveRedundantKeys = False
+        self.bDeleteExistingMorphTargetCurves = False
+        self.bDoNotImportCurveWithZero = True
+        self.bPreserveLocalTransform = True
 
 class TextureImportData(ImportData):
     bInvertNormalMaps = True
 
-class FBXImportSettings(object):
 
+
+class FBXImportSettings(object):
+    """
+    ImportSettings in Setting Group is UFbxImportUI:
+        bIsObjImport /** Whether or not the imported file is in OBJ format */
+        OriginalImportType /** The original detected type of this import */
+        MeshTypeToImport /** Type of asset to import from the FBX file */
+        bOverrideFullName : true /** Use the string in "Name" field as full name of mesh. The option only works when the scene contains one mesh. */
+        bImportAsSkeletal /** Whether to import the incoming FBX as a skeletal object */
+        bImportMesh /** Whether to import the incoming FBX as a Subdivision Surface (could be made a combo box together with bImportAsSkeletal) (Experimental, Early work in progress) */
+	                /** Whether to import the mesh. Allows animation only import when importing a skeletal mesh. */
+        Skeleton /** Skeleton to use for imported asset. When importing a mesh, leaving this as "None" will create a new skeleton. When importing an animation this MUST be specified to import the asset. */
+        bCreatePhysicsAsset /** If checked, create new PhysicsAsset if it doesn't have it */
+        bAutoComputeLodDistances ** If checked, the editor will automatically compute screen size values for the static mesh's LODs. If unchecked, the user can enter custom screen size values for each LOD. */
+        LodDistance0 /** Set a screen size value for LOD 0*/
+        LodDistance1 /** Set a screen size value for LOD 1*/
+        LodDistance2 /** Set a screen size value for LOD 2*/
+        LodDistance3 /** Set a screen size value for LOD 3*/
+        LodDistance4 /** Set a screen size value for LOD 4*/
+        LodDistance5 /** Set a screen size value for LOD 5*/
+        LodDistance6 /** Set a screen size value for LOD 6*/
+        LodDistance7 /** Set a screen size value for LOD 7*/
+        MinimumLodNumber /** Set the minimum LOD used for rendering. Setting the value to 0 will use the default value of LOD0. */
+        LodNumber /** Set the number of LODs for the editor to import. Setting the value to 0 imports the number of LODs found in the file (up to the maximum). */
+        bImportAnimations /** True to import animations from the FBX File */
+        OverrideAnimationName /** Override for the name of the animation to import. By default, it will be the name of FBX **/
+        bImportRigidMesh /** Enables importing of 'rigid skeletalmesh' (unskinned, hierarchy-based animation) from this FBX file, no longer shown, used behind the scenes */
+        bImportMaterials /** If no existing materials are found, whether to automatically create Unreal materials for materials found in the FBX scene */
+        bImportTextures /** Whether or not we should import textures. This option is disabled when we are importing materials because textures are always imported in that case. */
+        bResetToFbxOnMaterialConflict /** If true, the imported material sections will automatically be reset to the imported data in case of a reimport conflict. */
+        StaticMeshImportData /** Import data used when importing static meshes */
+        SkeletalMeshImportData /** Import data used when importing skeletal meshes */
+        AnimSequenceImportData /** Import data used when importing animations */
+        TextureImportData /** Import data used when importing textures */
+        bAutomatedImportShouldDetectType /** If true the automated import path should detect the import type.  If false the import type was specified by the user */
+        bIsReimport
+        bAllowContentTypeImport
+    """
     def __init__(self):
         self.settings = dict(ImportGroups = [])
         self._groups = []
@@ -55,7 +94,7 @@ class FBXImportSettings(object):
     def _add_group(self, setting_group):
         self.settings["ImportGroups"].append(setting_group)
 
-    def addGroup(self, group_name, files_path, destination, import_setting):
+    def addGroup(self, group_name, files_path, destination, import_setting, is_reimport=False):
         if not issubclass(import_setting.__class__, ImportData):
             print("import_setting input should be of class ImportSetting")
         setting_group = {
@@ -67,10 +106,12 @@ class FBXImportSettings(object):
             "FactoryName": "FbxFactory",
             "ImportSettings": {}
         }
-        raw_setting = import_setting.__dict__
+        raw_setting = vars(import_setting)
         if hasattr(import_setting, "TargetSkeleton"):
-            setting_group["TargetSkeleton"] = import_setting.TargetSkeleton
+            setting_group["ImportSettings"]["Skeleton"] = str(import_setting.TargetSkeleton)
             raw_setting.pop("TargetSkeleton")
+        if is_reimport:
+            setting_group["ImportSettings"]["bIsReimport"] = "true"
         setting_group["ImportSettings"][import_setting.__class__.__name__] = raw_setting
 
         self._add_group(setting_group)
@@ -89,8 +130,11 @@ class FBXImportSettings(object):
                 os.makedirs(os.path.dirname(filepath))
             except:
                 pass
-        with open(filepath, "w+") as f:
-            json.dump(self.settings, f, sort_keys=True, indent=4, separators=(',', ': '))
+        try:
+            with open(filepath, "w+") as f:
+                json.dump(self.settings, f, sort_keys=True, indent=4, separators=(',', ': '))
+        except:
+            pass
         print(filepath)
         return filepath
 
@@ -109,21 +153,21 @@ class Unreal4CMD(object):
         if self.editor and os.path.exists(self.editor):
             if os.path.isfile(self.editor) and os.path.basename(self.editor) == "UE4Editor-Cmd.exe":
                 return self.editor
-            for r in glob.glob(self.editor + "/Binaries/Win64/UE4Editor-Cmd.exe"):
+            for r in glob.glob(os.path.normpath(str(self.editor) + "/Binaries/Win64/UE4Editor-Cmd.exe")):
                 return r
 
     def getEditor(self):
         if self.editor and os.path.exists(self.editor):
             if os.path.isfile(self.editor) and os.path.basename(self.editor) == "UE4Editor.exe":
                 return self.editor
-            for r in (glob.glob(self.editor + "/Binaries/Win64/UE4Editor.exe")):
+            for r in (glob.glob(os.path.normpath(str(self.editor) + "/Binaries/Win64/UE4Editor.exe"))):
                 return r
 
     def getProject(self):
         if self.project and os.path.exists(self.project):
             if os.path.isfile(self.project) and self.project.endswith("*.uproject"):
                 return self.project
-            for r in glob.glob(self.project + "/*.uproject"):
+            for r in glob.glob(str(self.project) + "/*.uproject"):
                 return r
 
     def run_editor(
@@ -132,8 +176,6 @@ class Unreal4CMD(object):
         log= False,
         consolevariables= [],
         run_process_callable= Popen,
-        run_process_argv= [],
-        run_process_kws= {},
         custom_editor_path= "",
         custom_project_path= "",
         as_cmd= False,
@@ -148,21 +190,19 @@ class Unreal4CMD(object):
         if not project_path:
             raise NoEditorException("No Project Define")
 
-        argv.append('-ExecCmds="{}"'.format(";".join(consolevariables)))
+        argv.append(r'-ExecCmds="{}"'.format(";".join(consolevariables)))
         if log:
             try:
                 if isinstance(log, str):
                     argv.append("-log")
-                    argv.append('LOG="{}"'.format(log))
+                    argv.append(r'LOG="{}"'.format(log))
             except TypeError:
-                argv.append(f"-log")
+                argv.append("-log")
         if as_cmd:
             editor_path = editor_path.replace("UE4Editor", "UE4Editor-Cmd")
-        p = run_process_callable(
-            [editor_path, project_path, *argv],
-            *run_process_argv,
-            **run_process_kws,
-        )
+        cmd = [editor_path, project_path]
+        cmd.extend(argv)
+        p = run_process_callable(cmd)
         if run_process_callable == Popen and communicate:
             p.communicate()
         return p
@@ -172,7 +212,7 @@ class Unreal4CMD(object):
         map_path,
         sequence_path,
         output_folder = "render",
-        output_name = "Render.{frame}",
+        output_name = r"Render.{frame}",
         output_format= RenderOutputFormat.PNG,
         start_frame = 0,
         end_frame = 0,
@@ -182,33 +222,33 @@ class Unreal4CMD(object):
         quality = 100,
         warmup_frames = 30,
         delay_frames = 30,
-        preview: bool = False
+        preview= False
     ):
         cmds = [
             map_path,
             "-game",
             '-MovieSceneCaptureType="/Script/MovieSceneCapture.AutomatedLevelSequenceCapture"',
-            f'-LevelSequence="{sequence_path}"',
+            '-LevelSequence="{}"'.format(sequence_path),
             "-noloadingscreen ",
-            f"-ResX={res_x}",
-            f"-ResY={rex_y}",
+            "-ResX={}".format(res_x),
+            "-ResY={}".format(rex_y),
             "-ForceRes",
             "-NoVSync" if preview else "-VSync",
-            f"-MovieFrameRate={frame_rate}",
+            "-MovieFrameRate={}".format(frame_rate),
             "-NoTextureStreaming",
             "-MovieCinematicMode=Yes",
-            f"-MovieWarmUpFrames={warmup_frames}",
-            f"-MovieDelayBeforeWarmUp={delay_frames}",
-            f"-MovieQuality={quality}",
-            f'-MovieFolder="{output_folder}"',
-            f'-MovieName="{output_name}"',
-            f'-MovieFormat="{output_format}"',
+            "-MovieWarmUpFrames={}".format(warmup_frames),
+            "-MovieDelayBeforeWarmUp={}".format(delay_frames),
+            "-MovieQuality={}".format(quality),
+            '-MovieFolder="{}"'.format(output_folder),
+            '-MovieName="{}"'.format(output_name),
+            '-MovieFormat="{}"'.format(output_format),
             "-NoScreenMessage",
         ]
         if start_frame:
-            cmds.append(f"-MovieStartFrame={start_frame}")
+            cmds.append("-MovieStartFrame={}".format(start_frame))
         if end_frame:
-            cmds.append(f"-MovieEndFrame={end_frame}")
+            cmds.append("-MovieEndFrame={}".format(end_frame))
         return self.run_editor(cmds, as_cmd=True, log=True, communicate=True)
 
     def run_python(
@@ -219,26 +259,29 @@ class Unreal4CMD(object):
         timeout = None,
     ):
         use_cmd = True
-        cmd = ["-run=pythonscript", f"-script={python_file}"]
+        cmd = ["-run=pythonscript", r"-script={}".format(python_file)]
 
         if fully_initialize:
             use_cmd = False
-            cmd = [f'-ExecutePythonScript="{python_file}"']
+            cmd = [r'-ExecutePythonScript="{}"'.format(python_file)]
 
         return self.run_editor(
                 cmd,
                 log=log,
-                run_process_kws=dict(
-                    encoding="utf-8",
-                    timeout=timeout,
-                    shell=True,
-                ),
                 as_cmd=use_cmd,
                 communicate=True
             )
 
-    def run_import(self, importsettings):
-        cmd = ["-run=ImportAssets"]
-        cmd.append('-importsettings="{}"'.format(importsettings))
-        cmd.append("-replaceexisting")
+    def run_import(self, importsettings, use_source_control = False, submit_desc=""):
+        try:
+            cmd = ["-run=ImportAssets"]
+            cmd.append(r'-importsettings="{}"'.format(importsettings))
+            cmd.append("-replaceexisting")
+            if not use_source_control:
+                cmd.append("-nosourcecontrol")
+            else:
+                if submit_desc:
+                    cmd.append(r'-submitdesc="{}"'.format(submit_desc))
+        except:
+            print("OK")
         self.run_editor(cmd, as_cmd=True, communicate=True)
