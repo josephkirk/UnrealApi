@@ -2,23 +2,6 @@
 	"FileVersion": 3,
 	"Category": "",
 	"Description": "",
-	"Plugins": [
-		{
-			"Name": "PythonScriptPlugin",
-			"Enabled": true
-		},
-		{
-			"Name": "SequencerScripting",
-			"Enabled": true
-		},
-		{
-			"Name": "PythonAutomationTest",
-			"Enabled": true
-		},
-		{
-			"Name": "EditorScriptingUtilities",
-			"Enabled": true
-		}
-	],
+	"Plugins": [],
 	"EngineAssociation": "4.25"
 }
