@@ -1,6 +1,8 @@
 #!Python3
 import os, sys
 import re
+import shutil
+from typing import Sequence
 
 import pytest
 import psutil
@@ -55,6 +57,7 @@ class TestUE4API:
         )
         for ue4_instance in ue4_instances:
             ue4_instance.kill()
+        
 
     @pytest.mark.dependency()
     def test_run_editor(self, ue4cmd):
@@ -63,6 +66,52 @@ class TestUE4API:
                 p for p in psutil.process_iter() if re.match("UE4.+", p.name())
             ]
         assert len(ue4_instances) > 0, "Failed to launch Unreal"
+
+    @pytest.mark.dependency()
+    def test_set_project_config(self, ue4cmd):
+        config = ue4cmd.getProjectConfig()
+        config["Plugins"] = []
+        ue4cmd.saveProjectConfig(config)
+        config = ue4cmd.getProjectConfig()
+        assert config["Plugins"] == [], "Failed to set project config"
+
+    @pytest.mark.dependency(depends=["TestUE4API::test_run_editor"])
+    def test_run_import_mesh(self, ue4, ue4cmd, datapath, projectpath):
+        expected_file = Path(projectpath) / "Content/Meshes/SM_Cave_Brick_01a2.uasset"
+        try:
+            if expected_file.exists():
+                expected_file.unlink()
+            importsettings = ue4.FBXImportSettings()
+            meshimportsetting = ue4.StaticMeshImportData()
+            importsettings.addGroup("StaticMesh", [str(datapath / "SM_Cave_Brick_01a2.FBX")], "/Game/Meshes/", meshimportsetting)
+            result = ue4cmd.run_import(importsettings.asJson())
+            import time
+            time.sleep(1)
+            assert expected_file.exists(), "Failed To import StaticMesh Asset"
+        finally:
+            try:
+                shutil.rmtree(os.path.dirname(expected_file))
+            except:
+                pass
+
+    @pytest.mark.dependency(depends=["TestUE4API::test_run_editor"])
+    def test_run_import_skeletalmesh(self, ue4, ue4cmd, datapath, projectpath):
+        expected_file = Path(projectpath) / "Content/Characters/SK_CharM_Barbarous.uasset"
+        try:
+            if expected_file.exists():
+                expected_file.unlink()
+            importsettings = ue4.FBXImportSettings()
+            skelmeshimportsetting = ue4.StaticMeshImportData()
+            importsettings.addGroup("SkeletalMesh", [str(datapath / "SK_CharM_Barbarous.FBX")], "/Game/Characters/", skelmeshimportsetting)
+            result = ue4cmd.run_import(importsettings.asJson())
+            import time
+            time.sleep(1)
+            assert expected_file.exists(), "Failed To import Skeletal Mesh Asset"
+        finally:
+            try:
+                shutil.rmtree(os.path.dirname(expected_file))
+            except:
+                pass
 
     @pytest.mark.dependency(depends=["TestUE4API::test_run_editor"])
     def test_run_import_animation(self, ue4, ue4cmd, datapath, projectpath):
@@ -83,7 +132,6 @@ class TestUE4API:
 
     @pytest.mark.dependency(depends=["TestUE4API::test_run_editor"])
     def test_run_reimport_animation(self, ue4, ue4cmd, datapath, temppath, projectpath):
-        import shutil
         expected_file = Path(projectpath) / "Content/AnimStarterPack/Fire_Shotgun_Hip.uasset"
         tempfile = temppath / expected_file.name
         if tempfile.exists():
@@ -106,3 +154,27 @@ class TestUE4API:
             expected_file.unlink()
             shutil.copyfile(str(tempfile), str(expected_file))
             shutil.copystat(str(tempfile), str(expected_file))
+
+    @pytest.mark.dependency(depends=["TestUE4API::test_run_editor"])
+    def test_run_render(self, ue4, ue4cmd, datapath, temppath, projectpath):
+        render_folder = str(temppath / "render")
+        if not os.path.exists(render_folder):
+            os.makedirs(render_folder)
+        else:
+            shutil.rmtree(render_folder)
+        try:
+            ue4cmd.run_render(
+                map_path = "/Game/Maps/TestMap_P",
+                sequence_path = "/Game/Sequences/TestSequence",
+                output_folder = render_folder,
+                output_name = "RenderTest.{frame}",
+                output_format = ue4.RenderOutputFormat.PNG,
+                warmup_frames = 5,
+                delay_frames = 5,
+                preview=False,
+                useburnin=True
+            )
+            render_files = os.listdir(render_folder)
+            assert len(render_files) > 0, "Failed to Render From Unreal"
+        finally:
+            pass

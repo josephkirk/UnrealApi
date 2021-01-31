@@ -1,8 +1,17 @@
 import os
 import glob
+from os.path import basename, dirname, splitext
 from subprocess import Popen
 import json
 from functools import partial
+
+def get_temp_path():
+    p = os.path.join(os.getenv("TMP"), os.path.splitext(os.path.basename(__file__))[0])
+    if not os.path.exists(p):
+        os.makedirs(p)
+    return p
+
+
 class RenderOutputFormat(object):
     JPG = "jpg"
     BMP = "bmp"
@@ -48,8 +57,6 @@ class AnimSequenceImportData(ImportData):
 
 class TextureImportData(ImportData):
     bInvertNormalMaps = True
-
-
 
 class FBXImportSettings(object):
     """
@@ -145,6 +152,57 @@ class NoEditorException(Exception):
 class NoProjectException(Exception):
     pass
 
+
+class Unreal4Config(object):
+    pass
+
+class UserEngine(Unreal4Config):
+    content = r"""
+[/Script/PythonScriptPlugin.PythonScriptPluginSettings]
+{}
+bDeveloperMode=True
+bRemoteExecution=True
+RemoteExecutionMulticastGroupEndpoint={}
+RemoteExecutionMulticastBindAddress={}
+RemoteExecutionSendBufferSizeBytes={}
+RemoteExecutionReceiveBufferSizeBytes={}
+RemoteExecutionMulticastTtl=0
+    """
+    multicastendpoint = "239.0.0.1:6766"
+    multicastbindaddress = "0.0.0.0"
+    SendBufferSize = 2097152
+    ReceiveBufferSize = 2097152
+    def __init__(self):
+        self.startupScript = ""
+        self.AdditionalPaths = []
+
+    def setStarupScript(self, startupscript_path):
+        if os.path.exists(startupscript_path) and startupscript_path.endswith(".py"):
+            self.startupScript = "+StartupScripts={}".format(startupscript_path)
+
+    def addAdditionalPythonPath(self, python_path):
+        if os.path.exists(python_path):
+            self.AdditionalPaths.append(r"+AdditionalPaths=(Path=\"{}\")".format(python_path))
+
+    def saveAsConfig(self, outputpath=""):
+        script_path = []
+        if self.startupScript:
+            script_path.append(self.startupScript)
+        if self.AdditionalPaths:
+            script_path.extend(self.AdditionalPaths)
+        script_path = "\n".join(script_path)
+        content = self.content.format(script_path, self.multicastendpoint, self.multicastbindaddress, self.SendBufferSize, self.ReceiveBufferSize)
+        config_path = outputpath
+        if not config_path:
+            config_path = os.path.join(get_temp_path(), "UserEngine.ini")
+        with open(config_path, "w+") as f:
+            f.write(content)
+        return config_path
+
+    @classmethod
+    def asConfig(cls, outputpath=""):
+        return cls().saveAsConfig(outputpath)
+
 class Unreal4CMD(object):
     def __init__(self, editor="", project=""):
         self.editor = editor or os.getenv("UE4Editor", "")
@@ -171,26 +229,82 @@ class Unreal4CMD(object):
             for r in glob.glob(str(self.project) + "/*.uproject"):
                 return r
 
+    def getProjectConfig(self):
+        projectfile_path = self.getProject()
+        if projectfile_path:
+            with open(projectfile_path, "r") as f:
+                return json.load(f)
+        else:
+            raise NoProjectException("No valid file project!")
+
+    def saveProjectConfig(self, project_config={}):
+        if not project_config:
+            project_config = self.getProjectConfig()
+        projectfile_path = self.getProject()
+        try:
+            with open(projectfile_path, "w+") as f:
+                json.dump(project_config, f, sort_keys=True, indent=4, separators=(',', ': '))
+        except Exception as why:
+            print("Cannot directly edit {} with error {}".format(os.path.basename(projectfile_path, why)))
+            projectfile_path = os.path.join(os.path.dirname(projectfile_path), "Edit{}".format(os.path.basename(projectfile_path)))
+            with open(projectfile_path, "w+") as f:
+                json.dump(project_config, f, sort_keys=True, indent=4, separators=(',', ': '))
+
+    def setPlugins(self, projectfile_path, plugins):
+        project_config = self.getProjectConfig()
+        for plugin in plugins:
+            for project_plugin in project_config["Plugins"]:
+                if project_plugin.get("Name") == plugin.get("Name"):
+                    project_plugin["Enabled"] = plugin.get("Enabled")
+                    break
+            else:
+                project_config["Plugins"].append(plugin)
+        self.saveProjectConfig(project_config)
+        return projectfile_path
+        
+
     def run_editor(
         self,
+        map_path=None,
         argv= [],
+        plugins = [
+            {
+                "Name": "PythonScriptPlugin",
+                "Enabled": True
+            },
+            {
+                "Name": "SequencerScripting",
+                "Enabled": True
+            },
+            {
+                "Name": "PythonAutomationTest",
+                "Enabled": True
+            },
+            {
+                "Name": "EditorScriptingUtilities",
+                "Enabled": True
+            }
+        ],
         log= False,
         consolevariables= [],
         run_process_callable= Popen,
         custom_editor_path= "",
         custom_project_path= "",
+        UserConfig = UserEngine.asConfig(),
         as_cmd= False,
         communicate = False
     ):
-
-        editor_path = self.getEditor()
+        getEditor = self.getCMD if as_cmd else self.getEditor
+        editor_path = getEditor() or custom_editor_path
         if not editor_path:
             raise NoEditorException("No UE4 Editor Define")
 
-        project_path = self.getProject()
+        project_path = self.getProject() or custom_project_path
         if not project_path:
             raise NoEditorException("No Project Define")
 
+        project_path = self.setPlugins(project_path, plugins)
+    
         argv.append(r'-ExecCmds="{}"'.format(";".join(consolevariables)))
         if log:
             try:
@@ -199,10 +313,15 @@ class Unreal4CMD(object):
                     argv.append(r'LOG="{}"'.format(log))
             except TypeError:
                 argv.append("-log")
-        if as_cmd:
-            editor_path = editor_path.replace("UE4Editor", "UE4Editor-Cmd")
         cmd = [editor_path, project_path]
+        if map_path:
+            cmd.append(map_path)
+        if as_cmd:
+            cmd.append("-silent")
+            cmd.append("-UNATTENDED")
+            cmd.append("-NOSPLASH")
         cmd.extend(argv)
+        cmd.append("EDITORUSERSETTINGSINI={}".format(UserConfig))
         p = run_process_callable(cmd)
         if run_process_callable == Popen and communicate:
             p.communicate()
@@ -223,14 +342,19 @@ class Unreal4CMD(object):
         quality = 100,
         warmup_frames = 30,
         delay_frames = 30,
-        preview= False
+        delaybeforeshot_frames = 0,
+        delayeveryframe_frames = 0,
+        preview= False,
+        shot=None,
+        useburnin=False,
+        write_editdecisionlist=None,
+        write_finalcutxml=None
     ):
         cmds = [
-            map_path,
             "-game",
             '-MovieSceneCaptureType="/Script/MovieSceneCapture.AutomatedLevelSequenceCapture"',
             '-LevelSequence="{}"'.format(sequence_path),
-            "-noloadingscreen ",
+            "-NoLoadingScreen",
             "-ResX={}".format(res_x),
             "-ResY={}".format(rex_y),
             "-ForceRes",
@@ -240,17 +364,34 @@ class Unreal4CMD(object):
             "-MovieCinematicMode=Yes",
             "-MovieWarmUpFrames={}".format(warmup_frames),
             "-MovieDelayBeforeWarmUp={}".format(delay_frames),
+            "-MovieDelayBeforeShotWarmUp={}".format(delaybeforeshot_frames),
+            "-MovieDelayEveryFrame={}".format(delayeveryframe_frames),
             "-MovieQuality={}".format(quality),
             '-MovieFolder="{}"'.format(output_folder),
             '-MovieName="{}"'.format(output_name),
             '-MovieFormat="{}"'.format(output_format),
+            '-UseBurnIn="{}"'.format(useburnin),
             "-NoScreenMessage",
+            "-WINDOWED"
         ]
+        if shot:
+            cmds.append('-Shot="{}"'.format(shot))
         if start_frame:
             cmds.append("-MovieStartFrame={}".format(start_frame))
         if end_frame:
             cmds.append("-MovieEndFrame={}".format(end_frame))
-        return self.run_editor(cmds, as_cmd=True, log=True, communicate=True)
+        if write_editdecisionlist:
+            cmds.append("-WriteEditDecisionList={}".format(write_editdecisionlist))
+        if write_finalcutxml:
+            cmds.append("-WriteFinalCutProXML={}".format(write_finalcutxml))
+
+        console_commands = [
+            "DisableAllScreenMessages",
+            "r.DepthOfFieldQuality=4",
+            "r.MotionBlurSeparable=1",
+            "r.MotionBlurQuality=4"
+        ]
+        return self.run_editor(map_path= map_path, argv=cmds, consolevariables=console_commands, as_cmd=True, log=True, communicate=True)
 
     def run_python(
         self,
@@ -267,7 +408,7 @@ class Unreal4CMD(object):
             cmd = [r'-ExecutePythonScript="{}"'.format(python_file)]
 
         return self.run_editor(
-                cmd,
+                argv=cmd,
                 log=log,
                 as_cmd=use_cmd,
                 communicate=True
@@ -285,4 +426,4 @@ class Unreal4CMD(object):
                     cmd.append(r'-submitdesc="{}"'.format(submit_desc))
         except:
             print("OK")
-        self.run_editor(cmd, as_cmd=True, communicate=True)
+        self.run_editor(argv=cmd, as_cmd=True, communicate=True)
