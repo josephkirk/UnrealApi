@@ -2,6 +2,7 @@ import os
 import glob
 from subprocess import Popen
 import json
+from functools import partial
 class RenderOutputFormat(object):
     JPG = "jpg"
     BMP = "bmp"
@@ -22,8 +23,8 @@ class StaticMeshImportData(ImportData):
         self.bCombineMeshes = False
 
 class SkeletalMeshImportData(ImportData):
+    TargetSkeleton = ""
     def __init__(self):
-        self.TargetSkeleton = ""
         self.bUpdateSkeletonReferencePose = True
         self.bUseT0AsRefPose = True
         self.bPreserveSmoothingGroups = True
@@ -33,8 +34,8 @@ class SkeletalMeshImportData(ImportData):
     
 
 class AnimSequenceImportData(ImportData):
+    TargetSkeleton = ""
     def __init__(self):
-        self.TargetSkeleton = ""
         self.bImportCustomAttribute = True
         self.bDeleteExistingCustomAttributeCurves = True
         self.bDeleteExistingNonCurveCustomAttributes = True
