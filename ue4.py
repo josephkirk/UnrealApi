@@ -1,3 +1,5 @@
+#!/usr/local/bin/python
+# -*- coding: utf-8 -*-
 import os
 import glob
 from os.path import basename, dirname, splitext
@@ -142,8 +144,7 @@ class FBXImportSettings(object):
             with open(filepath, "w+") as f:
                 json.dump(self.settings, f, sort_keys=True, indent=4, separators=(',', ': '))
         except:
-            pass
-        print(filepath)
+            print("Failed to export setting as json")
         return filepath
 
 class NoEditorException(Exception):
@@ -205,35 +206,56 @@ RemoteExecutionMulticastTtl=0
 
 class Unreal4CMD(object):
     def __init__(self, editor="", project=""):
-        self.editor = editor or os.getenv("UE4Editor", "")
-        self.project = project or os.getenv("UE4Project", "")
+        self._editor = editor or os.getenv("UE4Editor", "")
+        self._project = project or os.getenv("UE4Project", "")
+
+    @property
+    def editor(self):
+        return str(self._editor)
+
+    @editor.setter
+    def editor(self, editor_path):
+        self._editor = editor_path
+
+    @property
+    def project(self):
+        return str(self._project)
+
+    @project.setter
+    def project(self, project_path):
+        self._project = project_path
 
     def getCMD(self):
         if self.editor and os.path.exists(self.editor):
             if os.path.isfile(self.editor) and os.path.basename(self.editor) == "UE4Editor-Cmd.exe":
                 return self.editor
-            for r in glob.glob(os.path.normpath(str(self.editor) + "/Binaries/Win64/UE4Editor-Cmd.exe")):
+            for r in glob.glob(os.path.normpath(self.editor) + "/Binaries/Win64/UE4Editor-Cmd.exe"):
                 return r
 
     def getEditor(self):
         if self.editor and os.path.exists(self.editor):
             if os.path.isfile(self.editor) and os.path.basename(self.editor) == "UE4Editor.exe":
                 return self.editor
-            for r in (glob.glob(os.path.normpath(str(self.editor) + "/Binaries/Win64/UE4Editor.exe"))):
+            for r in (glob.glob(os.path.normpath(self.editor) + "/Binaries/Win64/UE4Editor.exe")):
                 return r
 
     def getProject(self):
         if self.project and os.path.exists(self.project):
             if os.path.isfile(self.project) and self.project.endswith("*.uproject"):
                 return self.project
-            for r in glob.glob(str(self.project) + "/*.uproject"):
+            for r in glob.glob(self.project + "/*.uproject"):
                 return r
 
     def getProjectConfig(self):
         projectfile_path = self.getProject()
         if projectfile_path:
-            with open(projectfile_path, "r") as f:
-                return json.load(f)
+            try:
+                from StringIO import StringIO
+                print(projectfile_path)
+                data = str.decode(open(projectfile_path, 'r').read(), encoding='utf-8-sig')
+                return json.loads(data)
+            except Exception as why:
+                print("Failed to parse project {} as json!\n{}".format(projectfile_path, why))
         else:
             raise NoProjectException("No valid file project!")
 
@@ -245,7 +267,7 @@ class Unreal4CMD(object):
             with open(projectfile_path, "w+") as f:
                 json.dump(project_config, f, sort_keys=True, indent=4, separators=(',', ': '))
         except Exception as why:
-            print("Cannot directly edit {} with error {}".format(os.path.basename(projectfile_path, why)))
+            print(r"Cannot directly edit {} with error {}".format(os.path.basename(projectfile_path), why))
             projectfile_path = os.path.join(os.path.dirname(projectfile_path), "Edit{}".format(os.path.basename(projectfile_path)))
             with open(projectfile_path, "w+") as f:
                 json.dump(project_config, f, sort_keys=True, indent=4, separators=(',', ': '))
@@ -261,7 +283,7 @@ class Unreal4CMD(object):
                 project_config["Plugins"].append(plugin)
         self.saveProjectConfig(project_config)
         return projectfile_path
-        
+
 
     def run_editor(
         self,
