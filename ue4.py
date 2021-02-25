@@ -21,10 +21,17 @@ class RenderOutputFormat(object):
     Video = "video"
 
 class ImportData(object):
-    pass
+    def __init__(self):
+        # self.ImportTranslation= [0,0,0]
+        # self.ImportRotation = [0,0,0]
+        # self.ImportUniformScale = [1,1,1]
+        self.bConvertScene = True
+        self.bConvertSceneUnit = True
+        self.bConvertAsScene = True
 
 class StaticMeshImportData(ImportData):
     def __init__(self):
+        ImportData.__init__(self)
         self.bRemoveDegenerates = True
         self.bBuildAdjacencyBuffer = True
         self.bBuildReversedIndexBuffer = False
@@ -36,6 +43,7 @@ class StaticMeshImportData(ImportData):
 class SkeletalMeshImportData(ImportData):
     TargetSkeleton = ""
     def __init__(self):
+        ImportData.__init__(self)
         self.bUpdateSkeletonReferencePose = True
         self.bUseT0AsRefPose = True
         self.bPreserveSmoothingGroups = True
@@ -47,6 +55,7 @@ class SkeletalMeshImportData(ImportData):
 class AnimSequenceImportData(ImportData):
     TargetSkeleton = ""
     def __init__(self):
+        ImportData.__init__(self)
         self.bImportCustomAttribute = True
         self.bDeleteExistingCustomAttributeCurves = True
         self.bDeleteExistingNonCurveCustomAttributes = True
@@ -55,10 +64,11 @@ class AnimSequenceImportData(ImportData):
         self.bRemoveRedundantKeys = False
         self.bDeleteExistingMorphTargetCurves = False
         self.bDoNotImportCurveWithZero = True
-        self.bPreserveLocalTransform = True
+        self.bPreserveLocalTransform = False
 
 class TextureImportData(ImportData):
-    bInvertNormalMaps = True
+    def __init__(self):
+        self.bInvertNormalMaps = True
 
 class FBXImportSettings(object):
     """
@@ -111,8 +121,8 @@ class FBXImportSettings(object):
             "GroupName": group_name,
             "Filenames": files_path,
             "DestinationPath": destination,
-            "bReplaceExisting": "true",
-            "bSkipReadOnly": "true",
+            "bReplaceExisting": True,
+            "bSkipReadOnly": True,
             "FactoryName": "FbxFactory",
             "ImportSettings": {}
         }
@@ -121,7 +131,7 @@ class FBXImportSettings(object):
             setting_group["ImportSettings"]["Skeleton"] = str(import_setting.TargetSkeleton)
             raw_setting.pop("TargetSkeleton")
         if is_reimport:
-            setting_group["ImportSettings"]["bIsReimport"] = "true"
+            setting_group["ImportSettings"]["bIsReimport"] = True
         setting_group["ImportSettings"][import_setting.__class__.__name__] = raw_setting
 
         self._add_group(setting_group)
@@ -329,11 +339,12 @@ class Unreal4CMD(object):
     
         argv.append(r'-ExecCmds="{}"'.format(";".join(consolevariables)))
         if log:
-            try:
-                if isinstance(log, str):
-                    argv.append("-log")
+            if isinstance(log, str):
+                if os.path.split(log)[0]:
+                    argv.append(r'ABSLOG="{}"'.format(log))
+                else:
                     argv.append(r'LOG="{}"'.format(log))
-            except TypeError:
+            else:
                 argv.append("-log")
         cmd = [editor_path, project_path]
         if map_path:
@@ -342,8 +353,11 @@ class Unreal4CMD(object):
             cmd.append("-silent")
             cmd.append("-UNATTENDED")
             cmd.append("-NOSPLASH")
+            cmd.append("-NOLOADSTARTUPPACKAGES")
+            cmd.append("-targetplatform=WindowsNoEditor")
         cmd.extend(argv)
         cmd.append("EDITORUSERSETTINGSINI={}".format(UserConfig))
+        print("Run Unreal Editor with commands: {}".format(" ".join(cmd)))
         p = run_process_callable(cmd)
         if run_process_callable == Popen and communicate:
             p.communicate()
@@ -370,7 +384,8 @@ class Unreal4CMD(object):
         shot=None,
         useburnin=False,
         write_editdecisionlist=None,
-        write_finalcutxml=None
+        write_finalcutxml=None,
+        log=True
     ):
         cmds = [
             "-game",
@@ -413,7 +428,7 @@ class Unreal4CMD(object):
             "r.MotionBlurSeparable=1",
             "r.MotionBlurQuality=4"
         ]
-        return self.run_editor(map_path= map_path, argv=cmds, consolevariables=console_commands, as_cmd=True, log=True, communicate=True)
+        return self.run_editor(map_path= map_path, argv=cmds, consolevariables=console_commands, as_cmd=True, log=log, communicate=True)
 
     def run_python(
         self,
@@ -436,7 +451,7 @@ class Unreal4CMD(object):
                 communicate=True
             )
 
-    def run_import(self, importsettings, use_source_control = False, submit_desc=""):
+    def run_import(self, importsettings, use_source_control = False, submit_desc="", log=False):
         try:
             cmd = ["-run=ImportAssets"]
             cmd.append(r'-importsettings="{}"'.format(importsettings))
@@ -448,4 +463,4 @@ class Unreal4CMD(object):
                     cmd.append(r'-submitdesc="{}"'.format(submit_desc))
         except:
             print("OK")
-        self.run_editor(argv=cmd, as_cmd=True, communicate=True)
+        self.run_editor(argv=cmd, as_cmd=True, communicate=True, log=log)
