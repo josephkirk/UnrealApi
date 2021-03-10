@@ -31,11 +31,17 @@ def projectpath(datapath):
 class TestUE4API:
     @pytest.fixture()
     def ue4(self):
+        """
+            Import the Module
+        """
         from unrealapi import ue4
         return ue4
 
     @pytest.fixture()
     def ue4cmd(self, ue4, editorpath, projectpath):
+        """
+            Create an instance of Unreal4CMD for unreal communication.
+        """
 
         return ue4.Unreal4CMD(
                             editor = editorpath,
@@ -43,6 +49,9 @@ class TestUE4API:
         )
 
     def setup_method(self, method):
+        """
+            Stop all Unreal Process before test
+        """
         print("teardown_method   method:%s" % method.__name__)
         ue4_instances = (
                 p for p in psutil.process_iter() if re.match("UE4.+", p.name())
@@ -51,6 +60,9 @@ class TestUE4API:
             ue4_instance.kill()
 
     def teardown_method(self, method):
+        """
+            Stop all Unreal Process after test
+        """
         print("teardown_method   method:%s" % method.__name__)
         ue4_instances = (
                 p for p in psutil.process_iter() if re.match("UE4.+", p.name())
@@ -61,6 +73,9 @@ class TestUE4API:
 
     @pytest.mark.dependency()
     def test_run_editor(self, ue4cmd):
+        """
+            Test whether we can run the editor
+        """
         ue4cmd.run_editor()
         ue4_instances = [
                 p for p in psutil.process_iter() if re.match("UE4.+", p.name())
@@ -69,6 +84,9 @@ class TestUE4API:
 
     @pytest.mark.dependency()
     def test_set_project_config(self, ue4cmd):
+        """
+            Test whether we can set the setting in uproject file
+        """
         config = ue4cmd.getProjectConfig()
         config["Plugins"] = []
         ue4cmd.saveProjectConfig(config)
@@ -77,14 +95,17 @@ class TestUE4API:
 
     @pytest.mark.dependency(depends=["TestUE4API::test_run_editor"])
     def test_run_import_mesh(self, ue4, ue4cmd, datapath, projectpath):
+        """
+            Test import a fbx into unreal as static mesh asset
+        """
         expected_file = Path(projectpath) / "Content/Meshes/SM_Cave_Brick_01a2.uasset"
         try:
             if expected_file.exists():
                 expected_file.unlink()
-            importsettings = ue4.FBXImportSettings()
-            meshimportsetting = ue4.StaticMeshImportData()
-            importsettings.addGroup("StaticMesh", [str(datapath / "SM_Cave_Brick_01a2.FBX")], "/Game/Meshes/", meshimportsetting)
-            result = ue4cmd.run_import(importsettings.asJson())
+            import_settings = ue4.FBXImportSettings()
+            mesh_import_setting = ue4.StaticMeshImportData()
+            import_settings.addGroup("StaticMesh", [str(datapath / "SM_Cave_Brick_01a2.FBX")], "/Game/Meshes/", mesh_import_setting)
+            result = ue4cmd.run_import(import_settings.asJson())
             import time
             time.sleep(1)
             assert expected_file.exists(), "Failed To import StaticMesh Asset"
@@ -96,14 +117,18 @@ class TestUE4API:
 
     @pytest.mark.dependency(depends=["TestUE4API::test_run_editor"])
     def test_run_import_skeletalmesh(self, ue4, ue4cmd, datapath, projectpath):
+        """
+            Test import a fbx into unreal as skeleton mesh with no predefined skeleton
+        """
         expected_file = Path(projectpath) / "Content/Characters/SK_CharM_Barbarous.uasset"
         try:
             if expected_file.exists():
                 expected_file.unlink()
-            importsettings = ue4.FBXImportSettings()
-            skelmeshimportsetting = ue4.StaticMeshImportData()
-            importsettings.addGroup("SkeletalMesh", [str(datapath / "SK_CharM_Barbarous.FBX")], "/Game/Characters/", skelmeshimportsetting)
-            result = ue4cmd.run_import(importsettings.asJson())
+            import_settings = ue4.FBXImportSettings()
+            skelmesh_import_setting = ue4.SkeletalMeshImportData()
+            anim_import_setting.TargetSkeleton = "/Game/AnimStarterPack/UE4_Mannequin/Mesh/UE4_Mannequin_Skeleton"
+            import_settings.addGroup("SkeletalMesh", [str(datapath / "SK_CharM_Barbarous.FBX")], "/Game/Characters/", skelmesh_import_setting)
+            result = ue4cmd.run_import(import_settings.asJson())
             import time
             time.sleep(1)
             assert expected_file.exists(), "Failed To import Skeletal Mesh Asset"
@@ -115,14 +140,17 @@ class TestUE4API:
 
     @pytest.mark.dependency(depends=["TestUE4API::test_run_editor"])
     def test_run_import_animation(self, ue4, ue4cmd, datapath, projectpath):
+        """
+            Test import a animation fbx into unreal as Animation Sequence. Need to defined where is the skeleton in unreal 
+        """
         expected_file = Path(projectpath) / "Content/Animations/Deaths_Shoulder_Crawl.uasset"
         try:
             if expected_file.exists():
                 expected_file.unlink()
             importsetting= ue4.FBXImportSettings()
-            animimportsetting = ue4.AnimSequenceImportData()
-            animimportsetting.TargetSkeleton = "/Game/AnimStarterPack/UE4_Mannequin/Mesh/UE4_Mannequin_Skeleton"
-            importsetting.addGroup("Animation", [str(datapath / "Deaths_Shoulder_Crawl.FBX")], "/Game/Animations/", animimportsetting)
+            anim_import_setting = ue4.AnimSequenceImportData()
+            anim_import_setting.TargetSkeleton = "/Game/AnimStarterPack/UE4_Mannequin/Mesh/UE4_Mannequin_Skeleton"
+            importsetting.addGroup("Animation", [str(datapath / "Deaths_Shoulder_Crawl.FBX")], "/Game/Animations/", anim_import_setting)
             result = ue4cmd.run_import(importsetting.asJson())
             import time
             time.sleep(1)
@@ -132,6 +160,9 @@ class TestUE4API:
 
     @pytest.mark.dependency(depends=["TestUE4API::test_run_editor"])
     def test_run_reimport_animation(self, ue4, ue4cmd, datapath, temppath, projectpath):
+        """
+            Test reimport a animation fbx into unreal as Animation Sequence. Need to defined where is the skeleton in unreal 
+        """
         expected_file = Path(projectpath) / "Content/AnimStarterPack/Fire_Shotgun_Hip.uasset"
         tempfile = temppath / expected_file.name
         if tempfile.exists():
@@ -143,9 +174,9 @@ class TestUE4API:
                 assert False, "Missing test file for reimport"
             file_modtime = expected_file.stat().st_mtime
             importsetting= ue4.FBXImportSettings()
-            animimportsetting = ue4.AnimSequenceImportData()
-            animimportsetting.TargetSkeleton = "/Game/AnimStarterPack/UE4_Mannequin/Mesh/UE4_Mannequin_Skeleton"
-            importsetting.addGroup("Animation", [str(datapath / "Fire_Shotgun_Hip.FBX")], "/Game/AnimStarterPack/", animimportsetting, is_reimport=True)
+            anim_import_setting = ue4.AnimSequenceImportData()
+            anim_import_setting.TargetSkeleton = "/Game/AnimStarterPack/UE4_Mannequin/Mesh/UE4_Mannequin_Skeleton"
+            importsetting.addGroup("Animation", [str(datapath / "Fire_Shotgun_Hip.FBX")], "/Game/AnimStarterPack/", anim_import_setting, is_reimport=True)
             result = ue4cmd.run_import(importsetting.asJson())
             import time
             time.sleep(1)
@@ -157,6 +188,9 @@ class TestUE4API:
 
     @pytest.mark.dependency(depends=["TestUE4API::test_run_editor"])
     def test_run_render(self, ue4, ue4cmd, datapath, temppath, projectpath):
+        """
+            Test run render
+        """
         render_folder = str(temppath / "render")
         if not os.path.exists(render_folder):
             os.makedirs(render_folder)
