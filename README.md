@@ -11,4 +11,4 @@ ue4cmd = ue4.Unreal4CMD()
 ue4.cmd.run_editor(editor=editorpath, project=projectpath)
 ```
 
-*--see - [tests](./tests) folder for detail example on how to use--*
+*--see - [test file](./tests/test_ue4.py) for detail example on how to use--*
